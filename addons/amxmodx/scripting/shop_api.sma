@@ -1,8 +1,37 @@
 #include <amxmodx>
 #include <amxmisc>
+
+// defines for use with mods other than cs, and to disable/enable modules - comment/uncomment to enable/disable
+#define USE_CS
+
+// Use Ham Sandwich for client_spawn and client_death emulation instead of Fakemeta? (comment USE_FAKEMETA)
+#define USE_HAMSANDWICH
+
+// use fakemeta client_prethink for client_spawn and client_death instead of ham sandwich? (comment USE_HAMSANDWICH)
+//#define USE_FAKEMETA
+
+// use colors with menu - some mods don't have support for this
+//#define MENU_COLORS
+
+#if defined USE_CS
 #include <cstrike>
+
+// define to use CS money  natives
+//#define CS_MONEY
+
+#endif
+
+#if defined USE_HAMSANDWICH
 #include <hamsandwich>
+#endif
+
+#if defined USE_FAKEMETA
+#include <fakemeta>
+#endif
+
 #include <shop>
+
+#include < debug_helper >
 
 enum _:ItemData {
 	Item_Id,
@@ -68,21 +97,29 @@ new gMoneyFormatPlural[32] = "$%d";
 
 public plugin_init() {
 	register_plugin("Shop API", "0.0.8", "Exolent");
-	
+
+#if defined USE_CS
 	register_event("HLTV", "EventNewRound", "a", "1=0", "2=0");
-	
+#endif
+
+#if defined USE_HAMSANDWICH
 	RegisterHam(Ham_Spawn, "player", "FwdPlayerSpawnPost", 1);
 	RegisterHam(Ham_Killed, "player", "FwdPlayerKilledPost", 1);
-	
+#endif
+
+#if defined USE_FAKEMETA
+	register_forward(FM_PlayerPreThink,"shop_prethink");
+#endif
+
 	register_menu(gMenuRegisteredTitle, 1023, "MenuShop");
-/*
-	register_menucmd(register_menuid("select_skill"),MENU_KEY_1|MENU_KEY_2|MENU_KEY_3|MENU_KEY_4|MENU_KEY_5|MENU_KEY_6|MENU_KEY_7|MENU_KEY_8|MENU_KEY_9|MENU_KEY_0,"SCXPMSkillChoice");
-	register_menucmd(register_menuid("select_increment"),MENU_KEY_1|MENU_KEY_2|MENU_KEY_3|MENU_KEY_4|MENU_KEY_5|MENU_KEY_6,"SCXPMIncrementChoice");
-*/
 	
 	register_clcmd("say /shop", "CmdShop");
 	
+#if defined MENU_COLORS
 	gCvarMenuTitle = register_cvar("shop_menu_title", "Shop Menu^n\wYou have \y{$money}");
+#else
+	gCvarMenuTitle = register_cvar("shop_menu_title", "Shop Menu^nYou have {$money}");
+#endif
 	gCvarChatTag = register_cvar("shop_chat_tag", "[SHOP]");
 	gCvarSpawnMenu = register_cvar("shop_spawn_menu", "0");
 	
@@ -110,13 +147,30 @@ public plugin_init() {
 	set_task(1.0, "TaskLoadConfigs");
 }
 
+public plugin_precache()
+{
+	if(!pcvar_debug)
+		register_debug_cvar("shop_api_debug", "0");// add cvar to debug_helper.cfg to have it loaded with the cfg
+}
+
+public debug_set(bool:debug_enabled)
+{
+	if(!pcvar_debug)
+		register_debug_cvar("shop_api_debug", "0");// add cvar to debug_helper.cfg to have it loaded with the cfg
+	set_debug_logging(debug_enabled);
+	return;
+}
+
 public TaskLoadConfigs() {
 	new configsDir[32];
 	get_configsdir(configsDir, charsmax(configsDir));
 	
-	new fileShopGen[32], fileShop[32];
+//	new fileShopGen[32], fileShop[32];
+	new fileShopGen[48], fileShop[32];//modified fileShopGen because it wasn't able to hold a string long enough for .cfg extension in shop_gen.cfg - swmpdg
 	formatex(fileShopGen, charsmax(fileShopGen), "%s/shop_gen.cfg", configsDir);
 	formatex(fileShop, charsmax(fileShop), "%s/shop.cfg", configsDir);
+	
+	debug_log(g_debug, "fileShopGen filename: %s", fileShopGen);// might need larger container
 	
 	new f = fopen(fileShopGen, "wt");
 	
@@ -124,6 +178,10 @@ public TaskLoadConfigs() {
 		fputs(f, "// This file is generated to list all cvars from shop items^n");
 		fputs(f, "// If you try to edit this file, your changes will not be saved as this is generated every map^n");
 		fputs(f, "// If you want to edit these cvars, then edit the shop.cfg file^n^n");
+		
+		
+		fputs(f, "// To turn on debugging for the api plugin, set this value to 1.^nshop_api_debug ^"0^"^n^n");
+		g_debug = get_pcvar_num(pcvar_debug);
 		
 		new data[ItemData];
 		new Array:cvars;
@@ -145,6 +203,7 @@ public TaskLoadConfigs() {
 				get_pcvar_string(cvarData[Cvar_Pointer], value, charsmax(value));
 				
 				fprintf(f, "%s ^"%s^"^n", cvarData[Cvar_Name], value);
+				debug_log(g_debug,"TaskLoadConfigs %s ^"%s^"", cvarData[Cvar_Name], value);
 			}
 			
 			fputs(f, numCvars ? "^n^n" : "^n");
@@ -154,7 +213,7 @@ public TaskLoadConfigs() {
 		
 		fclose(f);
 	}
-	
+
 	if(!file_exists(fileShop)) {
 		new f = fopen(fileShop, "wt");
 		
@@ -162,6 +221,9 @@ public TaskLoadConfigs() {
 			fputs(f, "// This file is generated only if it doesn't already exist^n");
 			fputs(f, "// That means that there could be new cvars from plugins that you added that don't exist in here^n");
 			fputs(f, "// In case you added any plugins or want to make sure, go to shop_gen.cfg and copy over any new cvars^n^n");
+			
+			fputs(f, "// To turn on debugging for the api plugin, set this value to 1.^nshop_api_debug ^"0^"^n^n");
+			g_debug = get_pcvar_num(pcvar_debug);
 			
 			new data[ItemData];
 			new Array:cvars;
@@ -183,6 +245,7 @@ public TaskLoadConfigs() {
 					get_pcvar_string(cvarData[Cvar_Pointer], value, charsmax(value));
 					
 					fprintf(f, "%s ^"%s^"^n", cvarData[Cvar_Name], value);
+					debug_log(g_debug,"TaskLoadConfigs %s ^"%s^"", cvarData[Cvar_Name], value);
 				}
 				
 				fputs(f, numCvars ? "^n^n" : "^n");
@@ -221,10 +284,21 @@ public _shop_add_item(plugin, params) {
 	
 	data[Item_CvarEnabled] = item_register_cvar(data, "enabled", "1");
 	
-	new valueString[12];
+	new valueString[12];//maybe not long enough?
 	num_to_str(cost, valueString, charsmax(valueString));
 	data[Item_CvarCost] = item_register_cvar(data, "cost", valueString);
-	
+
+	new valueString2[12];
+	get_pcvar_string(data[Item_CvarCost], valueString2, charsmax(valueString2));
+
+	if(!equali(valueString, valueString2))
+	{
+		debug_log(g_debug,"Values not equal, value %s set to %s (Array Indexing Error)", valueString, valueString2);
+		set_pcvar_string(data[Item_CvarCost],valueString);
+	}
+	get_pcvar_string(data[Item_CvarCost], valueString2, charsmax(valueString2));
+	debug_log(g_debug,"%s skill loaded, now adding to menu. Cost: %i %s %s", data[Item_Name], cost, valueString, valueString2);
+
 	if(team && team != (SHOP_TEAM_T | SHOP_TEAM_CT | SHOP_TEAM_SPEC)) {
 		new len;
 		
@@ -434,6 +508,8 @@ public _shop_item_register_cvar(plugin, params) {
 	new default_value[128];
 	get_string(3, default_value, charsmax(default_value));
 	
+	debug_log(g_debug,"shop_item_register_cvar Cost: %s", default_value);
+	
 	new flags, Float:fvalue;
 	
 	if(params > 3) {
@@ -452,16 +528,24 @@ item_register_cvar(data[ItemData], const description[], const default_value[], f
 	formatex(cvarData[Cvar_Name], charsmax(cvarData[Cvar_Name]), "shop_item_%s_%s", data[Item_ShortName], description);
 	
 	cvarData[Cvar_Pointer] = register_cvar(cvarData[Cvar_Name], default_value, flags, fvalue)
-	
+
+	debug_log(g_debug,"item_register_cvar Cost: %s", default_value);
+
 	ArrayPushArray(Array:data[Item_CvarData], cvarData);
 	
 	return cvarData[Cvar_Pointer];
 }
 
-public client_disconnect(id) {
+#if AMXX_VERSION_NUM >= 183
+public client_disconnected(id)
+#else
+public client_disconnect(id)
+#endif
+{
 	CheckResets(id, SHOP_RESET_ALL);
 }
 
+#if defined USE_CS
 public EventNewRound() {
 	gRoundNumber++;
 	
@@ -469,6 +553,7 @@ public EventNewRound() {
 		CheckResets(id, SHOP_RESET_ROUND);
 	}
 }
+#endif
 
 CheckResets(id, option) {
 	new resetData[ResetData];
@@ -491,6 +576,21 @@ ResetItem(id, item) {
 	remove_task(TASK_ID(id, item));
 }
 
+#if defined USE_FAKEMETA
+new deadFlag[33];
+public shop_prethink(id){
+	new deadflag=pev(id,pev_deadflag);
+	if(!deadflag&&deadFlag[id]){
+		FwdPlayerSpawnPost(id);
+	}else if(deadflag&&!deadFlag[id]){
+		FwdPlayerKilledPost(id);
+	}
+	deadFlag[id]=deadflag;
+	return FMRES_IGNORED;
+}
+#endif
+
+#if (defined USE_FAKEMETA || defined USE_HAMSANDWICH)
 public FwdPlayerSpawnPost(id) {
 	if(is_user_alive(id)) {
 		if(get_pcvar_num(gCvarSpawnMenu)) {
@@ -500,18 +600,32 @@ public FwdPlayerSpawnPost(id) {
 		CheckResets(id, SHOP_RESET_SPAWN);
 	}
 }
+#endif
 
-public FwdPlayerKilledPost(id, killer, shouldGib) {
-	if(!is_user_alive(id)) {
-		CheckResets(id, SHOP_RESET_DEATH);
+#if (defined USE_FAKEMETA || defined USE_HAMSANDWICH)
+#if defined USE_FAKEMETA
+public FwdPlayerKilledPost(id)
+#else // USE_HAMSANDWICH
+public FwdPlayerKilledPost(id, killer, shouldGib)
+#endif
+{
+	if(is_user_alive(id)) {
+		if(get_pcvar_num(gCvarSpawnMenu)) {
+			ShowShopMenu(id);
+		}
+		
+		CheckResets(id, SHOP_RESET_SPAWN);
 	}
 }
+#endif
 
 public CmdShop(id) {
 	ShowShopMenu(id);
 }
 
 #define PERPAGE 7
+
+#if defined MENU_COLORS
 
 ShowShopMenu(id, page = 0) {
 	new menu[1024], len;
@@ -615,8 +729,119 @@ ShowShopMenu(id, page = 0) {
 	copy(menu[len], charsmax(menu) - len, "\r0. \wExit");
 	replace(menu[titleLen], charsmax(menu) - titleLen, "{$pageInfo}", pageInfo);
 	
-	show_menu(id, keys, menu, .title = gMenuRegisteredTitle);
+//	show_menu(id, keys, menu, .title = gMenuRegisteredTitle);
+	show_menu(id, keys, menu, -1, .title = gMenuRegisteredTitle);// missing time parameter, but no error?
 }
+
+#else
+
+ShowShopMenu(id, page = 0) {
+	new menu[1024], len;
+	new keys = MENU_KEY_0;
+	
+	new money = GetMoney(id);
+	
+//	len = copy(menu, charsmax(menu), "\y");
+	
+	// grab custom title
+	new titleLen = get_pcvar_string(gCvarMenuTitle, menu[len], charsmax(menu) - len);
+	// fix new lines
+	replace_all(menu, charsmax(menu), "^^n", "^n");
+	// show money if in title
+	replace_all(menu, charsmax(menu), "{$money}", FormatMoney(money));
+	
+	// 
+	len = add(menu, charsmax(menu), "^n{$pageInfo}^n^n");
+	
+	new added = 0;
+	
+	new data[ItemData];
+	new allowed;
+	new cost;
+	
+	ArrayClear(gMenuItems[id]);
+	
+	new start = page * PERPAGE;
+	gMenuPage[id] = page;
+	
+	new Array:itemsAllowed = ArrayCreate(1);
+	
+	for(new i = 1; i < gItemCount; i++) {
+		ArrayGetArray(gItemData, i, data);
+		
+		allowed = GetAllowed(id, data);
+		
+		if(allowed == SHOP_ITEM_HIDDEN) continue;
+		
+		ArrayPushCell(gMenuItems[id], i);
+		ArrayPushCell(itemsAllowed, allowed);
+		
+		added++;
+	}
+	
+	if(!added) {
+		client_print(id, print_chat, "* You cannot buy anything!");
+		return;
+	}
+	
+	// in case we're at a higher page than exists
+	// go back to the last available page
+	if(added <= start) {
+		page = gMenuPage[id] = (added - 1) / PERPAGE;
+		start = page * PERPAGE;
+	}
+	
+	new stop = min(added, start + PERPAGE);
+	
+	for(new i = start; i < stop; i++) {
+		ArrayGetArray(gItemData, ArrayGetCell(gMenuItems[id], i), data);
+		
+		allowed = ArrayGetCell(itemsAllowed, i);
+		
+		cost = GetCost(data);
+		
+		if(allowed == SHOP_ITEM_ENABLED && cost > money) {
+			allowed = SHOP_ITEM_DISABLED;
+		}
+		
+		if(allowed == SHOP_ITEM_ENABLED) {
+			keys |= (1 << (i - start));
+			len += formatex(menu[len], charsmax(menu) - len, cost ? "%d. %s %s^n" : "%d. %s^n", (i - start + 1), data[Item_Name], FormatMoney(cost));
+		} else {
+			len += formatex(menu[len], charsmax(menu) - len, cost ? "%d. %s %s^n" : "%d. %s^n", (i - start + 1), data[Item_Name], FormatMoney(cost));
+		}
+	}
+	
+	ArrayDestroy(itemsAllowed);
+	
+	len += copy(menu[len], charsmax(menu) - len, "^n");
+	
+	new pageInfo[32];
+	
+	if(start > 0 || stop < added) {
+		if(start > 0) {
+			keys |= MENU_KEY_8;
+			len += copy(menu[len], charsmax(menu) - len, "8. Back^n");
+		}
+		if(stop < added) {
+			keys |= MENU_KEY_9;
+			len += copy(menu[len], charsmax(menu) - len, "9. Next^n");
+		}
+		
+		len += copy(menu[len], charsmax(menu) - len, "^n0. Exit");
+		
+		new pages = (added - 1) / PERPAGE + 1;
+		formatex(pageInfo, charsmax(pageInfo), "(Page %d/%d)", gMenuPage[id], pages);
+	}
+	
+	copy(menu[len], charsmax(menu) - len, "0. Exit");
+	replace(menu[titleLen], charsmax(menu) - titleLen, "{$pageInfo}", pageInfo);
+	
+//	show_menu(id, keys, menu, .title = gMenuRegisteredTitle);
+	show_menu(id, keys, menu, -1, .title = gMenuRegisteredTitle);// missing time parameter, but no error?
+}
+
+#endif
 
 public MenuShop(id, key) {
 	switch(++key % 10) {
@@ -637,6 +862,10 @@ public MenuShop(id, key) {
 				if(0 <= cost <= money) {
 					ExecuteForward(gForwardSelected, gReturnFromForward, i, id);
 					
+					/* 
+					must use PLUGIN_HANDLED or value other than PLUGIN_CONTINUE to automatically handle currency value changes
+					to disable a plugin from being allowed to purchase the item, PLUGIN_CONTINUE can be returned. - swmpdg
+					*/
 					if(gReturnFromForward != PLUGIN_CONTINUE) {
 						new lastUseData[LastUseData];
 						lastUseData[LastUse_Time ] = _:get_gametime();
@@ -668,7 +897,7 @@ public MenuShop(id, key) {
 			}
 		}
 	}
-	
+	// make it so shop only shows back up if player still has money left?
 	ShowShopMenu(id, gMenuPage[id]);
 	
 	return PLUGIN_HANDLED;
@@ -696,13 +925,15 @@ GetAllowed(id, data[ItemData]) {
 	if(!get_pcvar_num(data[Item_CvarEnabled])) {
 		return SHOP_ITEM_HIDDEN;
 	}
-	
+
+#if defined USE_CS
 	new teams = GetTeams(data[Item_CvarTeam]);
 	
 	if(teams && !(teams & (1 << (_:cs_get_user_team(id))))) {
 		return SHOP_ITEM_HIDDEN;
 	}
-	
+#endif
+
 	new allowed = SHOP_ITEM_ENABLED;
 	
 	new callback = data[Item_Callback_Allowed];
@@ -735,6 +966,7 @@ GetAllowed(id, data[ItemData]) {
 	return allowed;
 }
 
+#if defined USE_CS
 GetTeams(pcvar) {
 	new teamString[6];
 	get_pcvar_string(pcvar, teamString, charsmax(teamString));
@@ -759,6 +991,7 @@ GetTeams(pcvar) {
 	
 	return team;
 }
+#endif
 
 GetCost(data[ItemData]) {
 	return get_pcvar_num(data[Item_CvarCost]);
@@ -773,9 +1006,13 @@ GetChatTag() {
 
 GetMoney(id) {
 	if(gMoneyFunctionGet == -1) {
+#if defined USE_CS
 		return cs_get_user_money(id);
+#else
+		return 0;// must use custom money in mods other than cs
+#endif
 	}
-	
+
 	callfunc_begin_i(gMoneyFunctionGet, gMoneyPlugin);
 	callfunc_push_int(id);
 	return callfunc_end();
@@ -783,7 +1020,11 @@ GetMoney(id) {
 
 SetMoney(id, value) {
 	if(gMoneyFunctionSet == -1) {
+#if defined USE_CS
 		cs_set_user_money(id, value);
+#else
+		log_error(AMX_ERR_GENERAL,"You need to specify which money function if you are not using CS 1.6");
+#endif
 	} else {
 		callfunc_begin_i(gMoneyFunctionSet, gMoneyPlugin);
 		callfunc_push_int(id);

@@ -4,11 +4,9 @@
 #include < amxmisc >
 #include < debug_helper >
 #include < shop >
+#include < xpm_const >
 
 #pragma semicolon 1
-
-// max skills possible to load hardcoded to 64 for now.
-#define MAX_SKILLS 64
 
 // define for using CS or not (use with Sven Coop, other mods)
 #define USING_CS
@@ -32,8 +30,8 @@ new const xpmLib[_LIBNAME+1][] =
 };
 
 // forwards
-// new fwdSkillInit;
-//new fwdReturn;
+new fwdSkillInit;
+new fwdReturn;
 
 // cvars
 new g_iCvarXPMEnabled, g_iXPMEnabled;
@@ -47,6 +45,14 @@ new gItems[MAX_SKILLS+1];
 new gItemCostValues[MAX_SKILLS+1];
 /// player points
 new gPoints[33];
+/// max level for skill
+new gItemMaxLevel[MAX_SKILLS+1];
+/// required player level for skill
+new gItemRequiredLevel[MAX_SKILLS+1];
+/// current player skill level loaded?
+new gSkillLevel[33][MAX_SKILLS+1];// set skill status with player's current level of skill
+/// current player level loaded for checking requirements
+new gPlayerLevel[33];
 
 enum _:SkillzData
 {
@@ -58,13 +64,24 @@ enum _:SkillzData
 	_FUNC_ID,
 };
 
+new Array:g_aCvars;
+new g_iTotalCvars;
+enum _:CvarzData
+{
+	_SKILL_INDEX,
+	_SKILL_MAX,
+	_SKILL_LEVEL,//required player level for skill
+	_SKILL_DESC[64],
+	_SKILL_SHORT[16]
+};
+
 enum
 {
-	FWD_SKILL_INIT = 1
+	FWD_SKILL_INIT,
 }
 
 // forwards in an array using the Enum above
-stock const fwdID[FWD_SKILL_INIT][] =
+stock const fwdID[FWD_SKILL_INIT+1][] =
 {
 	"skill_init"
 };
@@ -89,15 +106,22 @@ public plugin_init()
 	ArrayPushArray(g_aItems, eSklData);// empty holder so id's start at 1
 	g_iTotalItems++;
 
+	new eSklCvar[CvarzData];
+	g_aCvars = ArrayCreate(CvarzData);
+	ArrayPushArray(g_aCvars, eSklCvar);
+	g_iTotalCvars++;
+
 #if defined USING_CS
 	register_event("DeathMsg", "EventDeathMsg", "a");
 #endif
 
 	register_clcmd("say /skillpoints", "CmdPoints");
 
-/*
-	fwdSkillInit = CreateMultiForward(fwdID[FWD_SKILL_INIT], ET_IGNORE, FP_CELL, FP_CELL);// parameter 1 = skill index, parameter 2 = player index??
-*/
+	// command to test max level from max_xp
+	register_clcmd("say /resetskills", "clearAllSkills");
+
+	fwdSkillInit = CreateMultiForward(fwdID[FWD_SKILL_INIT], ET_IGNORE, FP_CELL, FP_CELL, FP_CELL);// param 1 = player id, param 2 = skill id, param 3 = mode
+
 	cache_pcvars();// perhaps try to use cvars amxx 1.8.3 functionality once again, to avail
 }
 
@@ -119,9 +143,23 @@ public plugin_natives()
 	register_native("xpm_is_on","_xpm_is_on");
 
 	register_native("register_skill","_register_skill");
+	register_native("set_skill_info","_set_skill_info");// set_skill_info with longer description maybe
 
 	register_native("xpm_set_points","_xpm_set_points");// for skillpoints
 	register_native("xpm_get_points","_xpm_get_points");// for skill points
+
+//	register_native("get_skill_status","_get_skill_status");
+//	register_native("set_skill_status","_set_skill_status");// for handling max level skills..
+
+	// native set_player_level(id, player_level, bool:addToLevel=false); // returns player level
+	// native get_player_level(id); // returns player level
+	register_native("set_player_level","_set_player_level");
+	register_native("get_player_level","_get_player_level");
+
+	//native get_skill_level(id, skillIndex);// returns level of skill loaded for player
+	//native set_skill_level(id, skillIndex, level, bool:addToLevel);// sets level of skill loaded for player
+	register_native("get_skill_level","_get_skill_level");// player skill level of current item
+	register_native("set_skill_level","_set_skill_level");// set specific levels for skills on players, call through forward?
 /*
 	// ammo-related natives
 	
@@ -139,23 +177,189 @@ public plugin_natives()
 */
 }
 
+public _get_skill_level(plugin,params)
+{
+	if(params!=2)
+	{
+		log_bad_params();
+		return 0;
+	}
+
+	new id = get_param(1);
+	new skillId = get_param(2);
+
+	if(!id || !skillId)
+		return PLUGIN_CONTINUE;
+
+	return gSkillLevel[id][skillId];
+}
+
+public _set_skill_level(plugin,params)
+{
+	if(params!=4)
+	{
+		log_bad_params();
+		return 0;
+	}
+
+	new id = get_param(1);
+	new skillId = get_param(2);
+
+	if(!id || !skillId)
+		return PLUGIN_CONTINUE;
+
+	new skillLevel = get_param(3);
+
+	new addToLevel = get_param(4);
+	new maxSkill = gItemMaxLevel[skillId];
+
+	if(!addToLevel)
+	{
+		if((maxSkill) && (skillLevel > maxSkill))
+		{
+			skillLevel = gItemMaxLevel[skillId];
+		}
+		else
+		{
+			if(skillLevel < 0)
+			{
+				skillLevel = 0;
+			}
+		}
+	}
+	else
+	{
+		new oldSkillLvl = gSkillLevel[id][skillId];
+		new skillLevel = oldSkillLvl + skillLevel;
+
+		if((maxSkill) && (skillLevel > maxSkill))
+		{
+			skillLevel = maxSkill;
+		}
+		else
+		{
+			if (skillLevel < 0)
+			{
+				skillLevel = 0;
+			}
+		}
+	}
+
+//	gSkillLevel[id][skillId] = skillLevel;
+	set_skill_lvl(id, skillId, skillLevel, false);
+
+	return skillLevel;// return new skill level
+}
+
+public _get_player_level(plugin,params)
+{
+	if(params!=1)
+	{
+		log_bad_params();
+		return -1;
+	}
+
+	new id = get_param(1);
+
+	if(!id)
+		return PLUGIN_CONTINUE;
+
+	return gPlayerLevel[id];
+}
+
+// bool add to level
+public _set_player_level(plugin,params)
+{
+	if(params!=3)
+	{
+		log_bad_params();
+		return -1;
+	}
+
+	new id = get_param(1);
+
+	if(!id)
+		return PLUGIN_CONTINUE;
+	
+	new level = get_param(2);
+
+	new addToLevel = get_param(3);
+
+	if(!addToLevel)
+	{
+		if(level < 0)
+			level = 0;
+		gPlayerLevel[id] = level;
+	}
+	else
+	{
+		new newLevel = level+gPlayerLevel[id];
+		if(newLevel < 0)
+			newLevel = 0;
+		gPlayerLevel[id] = newLevel;
+	}
+
+	return gPlayerLevel[id];
+}
+
+//native set_skill_info(skillIndex, requiredPlayerLevel=0, maxSkillLevel, const description[], const shortName[]);
+public _set_skill_info(plugin,params)
+{
+	if(params!=5)
+	{
+		log_bad_params();
+		return -1;
+	}
+
+	new eSklCvar[SkillzData];
+	new sklId = get_param(1);
+
+	if(!sklId)
+	{
+		log_error(AMX_ERR_PARAMS, "Invalid Skill Index");
+		return -1;
+	}
+
+	eSklCvar[_SKILL_INDEX] = get_param(1);
+
+	new sklReqLvl = get_param(2);
+	eSklCvar[_SKILL_LEVEL] = sklReqLvl;
+	gItemRequiredLevel[sklId] = sklReqLvl;
+
+	new sklMaxLvl = get_param(3);
+	eSklCvar[_SKILL_MAX] = sklMaxLvl;
+	gItemMaxLevel[sklId] = sklMaxLvl;
+
+	get_string( 4, eSklCvar[_SKILL_DESC], charsmax(eSklCvar[_SKILL_DESC]));
+	get_string( 5, eSklCvar[_SKILL_SHORT], charsmax(eSklCvar[_SKILL_SHORT]));
+
+	ArrayPushArray( g_aCvars, eSklCvar );
+
+	g_iTotalCvars++;
+
+	return (g_iTotalCvars - 1);
+}
+
 // xpm_is_on(); // check if program is enabled
 public _xpm_is_on(plugin,params)
 {
 	if(params!=0)
+	{
+		log_bad_params();
 		return PLUGIN_CONTINUE;
+	}
 
 	return g_iXPMEnabled ? 1 : 0;
 }
 
+// set_skill_info()
+
 // register_skill("skill_name","max_level_cvar","Description");// returns skill index for sub-plugin - requires "skill_init" with skill index - similar to superhero mod and runemod ? must return value greater than 1? g_iSkillRegistry[MAX_SKILLS][2][16] - include callback?
 public _register_skill(plugin,params)
 {
-//	if(params!=5)
-
 	if(params<6)
 	{
-		log_error(AMX_ERR_PARAMS, "Missing or incorrect parameters");
+		log_bad_params();
 		return -1;
 	}
 
@@ -211,7 +415,24 @@ public CallbackItemAllowed(item, id)
 	{
 		if(gItems[i] == item)
 		{
-			if(gPoints[id] < gItemCostValues[i])
+			new costvalue = gItemCostValues[i];
+
+			// don't show player if they don't have enough points
+			if(gPoints[id] < costvalue)
+				return SHOP_ITEM_HIDDEN;
+
+			new reqLvl = gItemRequiredLevel[item];
+
+			// don't show player if they aren't a high enough level
+			if((reqLvl) && (reqLvl > gPlayerLevel[id]))
+				return SHOP_ITEM_HIDDEN;
+
+			new itemMax = gItemMaxLevel[item];
+			new sklLvl = gSkillLevel[id][item];
+			new costLvl = sklLvl + costvalue;
+
+			// don't show player if they already have the max level of this skill
+			if((itemMax) && (itemMax < costLvl))
 				return SHOP_ITEM_HIDDEN;
 		}
 	}
@@ -226,8 +447,11 @@ public shop_item_selected(item, id)
 		if(gItems[i] == item)
 		{
 			// let plugins know that the skill has been initialized if it hasn't already
-			// we can return the leftover skillpoints here with fwdReturn, and avoid using callfunc here which won't return a value
-//			ExecuteForward(fwdSkillInit, fwdReturn, id, item);
+			// we can return the leftover skillpoints here with fwdReturn, and avoid using callfunc here which won't return a value?
+			initSkill(id, item, SKILL_ADD);
+
+			// wasn't counting towards max level when selected - have plugins handle this separately?
+//			gSkillLevel[id][item]+=gItemCostValues[item];// have plugins handle with natives when using more than 1 item index per skill...
 
 			new eSklData[SkillzData];
 			ArrayGetArray( g_aItems, item, eSklData);
@@ -243,19 +467,57 @@ public shop_item_selected(item, id)
 	return PLUGIN_HANDLED;// return to over-ride handling of shop menu (doesn't work properly without value or with PLUGIN_CONTINUE)
 }
 
-/*
 public shop_item_reset(item, id)
 {
 	for(new i = 1; i <= g_iTotalItems; i++)
 	{
 		if(gItems[i] == item)
 		{
-//			set_user_rendering(id, kRenderFxNone, 0, 0, 0, kRenderNormal, 0);
-//			break;
+			gSkillLevel[id][item] = 0;// reset?
+			debug_log(g_debug,"Skill index %i reset for player index %i", item, id);
+			break;
 		}
 	}
 }
-*/
+
+// similar to superhero mod
+initSkill(id, skillIndex, mode)
+{
+	ExecuteForward(fwdSkillInit, fwdReturn, id, skillIndex, mode);// could have fwdReturn return value of current level of skill? to let plugin know?
+}
+
+// clear all skills // clearAllPowers(id, bool:dispStatusText) // should do bool:addPointsBack or something like that
+public clearAllSkills(id)
+{
+	// OK to fire if mod is off since we want skills to clean themselves up
+//	gPlayerPowers[id][0] = 0
+//	gPlayerBinds[id][0] = 0
+
+//	new totalPoints;
+	new skillIndex;
+	new bool:userConnected = is_user_connected(id) ? true : false;
+
+	// Clear the power before sending the drop init
+	for ( new x = 1; x <= g_iTotalItems; x++ )
+	{
+
+		// Save skillid for init forward
+		skillIndex = gItems[x];
+
+		// Clear All skill slots for player
+		gSkillLevel[id][x] = 0;
+
+		// Only send drop on skills user has (/)
+//		if ( skillIndex != -1 && userConnected )
+		if ( skillIndex > 0 && userConnected )
+		{
+			initSkill(id, skillIndex, SKILL_DROP);  // Disable this skill
+		}
+	}
+	// don't return points? or return points for player level?
+//	if(gPlayerLevel[id])
+//		localSetPoints(id,gPlayerLevel[id],true);
+}
 
 // skillpoints natives - xpm_set_points(player_id,amount,bool:addToSkillpoints=false)
 // returns -1 on missing parameters, 0 on none or less than 0 skill points or missing player id, or returns current skillpoints after being set
@@ -263,7 +525,7 @@ public _xpm_set_points(plugin, params)
 {
 	if(params!=3)
 	{
-		log_error(AMX_ERR_PARAMS, "Missing or incorrect parameters");
+		log_bad_params();
 		return -1;
 	}
 
@@ -276,6 +538,7 @@ public _xpm_set_points(plugin, params)
 
 	new addOn = get_param(3);
 
+/*
 	if(addOn)
 	{
 		new oldPts = gPoints[id];
@@ -294,8 +557,34 @@ public _xpm_set_points(plugin, params)
 
 		gPoints[id] = amt;
 	}
+*/
+	localSetPoints(id, amt, addOn);
+
 
 	return gPoints[id];
+}
+
+// use 1 to add to points, 0 to set points
+localSetPoints(id, amount, addToPoints=0)
+{
+	if(addToPoints)
+	{
+		new oldPts = gPoints[id];
+		new newPts = oldPts + amount;
+
+		if(newPts < 0)
+			newPts = 0;
+
+		gPoints[id] = newPts;
+	}
+	else
+	{
+		// we can go negative, but not yet
+		if(amount < 0)
+			amount = 0;
+
+		gPoints[id] = amount;
+	}
 }
 
 // skillpoints natives - xpm_get_points(player_id)
@@ -304,7 +593,7 @@ public _xpm_get_points(plugin,params)
 {
 	if(params!=1)
 	{
-		log_error(AMX_ERR_PARAMS, "Missing or incorrect parameters");
+		log_bad_params();
 		return -1;
 	}
 
@@ -381,4 +670,17 @@ public CallbackSetPoints(id, value)
 	// this is called after a player buys something
 	gPoints[id] = value;
 	client_print(id,print_chat,"You currently have %i points", value);
+}
+
+
+stock set_skill_lvl(id, skillIndex, skill_level, bool:addToLevel=false)
+{
+	if(!addToLevel)
+	{
+		gSkillLevel[id][skillIndex] = skill_level;
+	}
+	else
+	{
+		gSkillLevel[id][skillIndex]+=skill_level;
+	}
 }

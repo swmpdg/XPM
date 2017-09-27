@@ -19,6 +19,9 @@ const Float:HUD_STATS_X = 0.02
 //const Float:HUD_STATS_Y = 0.9
 const Float:HUD_STATS_Y = 0.87
 
+// Used for calculation in XP
+const Float:mysteryNumber = 5.0;
+
 new g_MsgSync;
 
 #define TASK_SHOWHUD 100
@@ -26,11 +29,12 @@ new g_MsgSync;
 
 #if !defined USING_CS
 new pcvar_maxlevelup_enabled, pcvar_maxlevelup, pcvar_maxlevelup_limit;
+new g_iMaxLvlUpOn, g_iMaxLvlUp, g_iMaxLvlUpLimit;
 new firstLvl[33], lastfrags[33];
 #endif
 
 //new pcvar_hud_channel;
-new pcvar_xpgain, pcvar_maxlevel;
+new pcvar_xpgain, pcvar_maxlevel, g_maxlevel, Float:g_fXPGain;
 new pcvar_save_style, pcvar_save_method, pcvar_save_bots, g_save_style, g_savemethod, g_save_bots;
 
 // name of vault file
@@ -181,6 +185,9 @@ public plugin_cfg()
 	if(get_cvar_num("sv_lan") > 0 && get_pcvar_num(pcvar_save_style))
 		set_pcvar_num(pcvar_save_style, 1); // save by name on lan if saving is enabled
 
+	// execute config file here? create XPM cfg forward to cache pcvars
+	
+	
 	g_save_style = get_pcvar_num(pcvar_save_style);
 	if(g_save_style)
 	{
@@ -203,7 +210,18 @@ public plugin_cfg()
 		}
 		// else load sql
 	}
+	cache_pcvars();
+}
 
+cache_pcvars()
+{
+#if !defined USING_CS
+	g_iMaxLvlUpOn = get_pcvar_num(pcvar_maxlevelup_enabled);
+	g_iMaxLvlUpLimit = get_pcvar_num(pcvar_maxlevelup_limit);
+	g_iMaxLvlUp = get_pcvar_num(pcvar_maxlevelup);
+#endif
+	g_maxlevel = get_pcvar_num(pcvar_maxlevel);
+	g_fXPGain = get_pcvar_float(pcvar_xpgain);
 }
 
 public client_putinserver(id)
@@ -242,9 +260,11 @@ public client_putinserver(id)
 		set_task(1.0, "ShowHUD", id+TASK_SHOWHUD, _, _, "b");// maybe setting this many tasks is bad? but seems possibly better than for loop because of HUD
 	}
 
-	playerlevel[id] = scxpm_calc_lvl(xp[id]);
+	new iLevel =  scxpm_calc_lvl(xp[id]);
+	playerlevel[id] = iLevel;
 	scxpm_calcneedxp(id);
-	xpm_set_points(id, playerlevel[id], true);
+	xpm_set_points(id, iLevel, true);
+	set_player_level(id, iLevel, false);
 }
 
 // calculate needed xp for next level
@@ -280,15 +300,16 @@ public check_player_level(id)
 
 			new points = playerlevel[id] - playerlevelOld;
 			xpm_set_points(id,points,true);// add to xp each time a player levels? - returns  xpm skillpoints
-
+			set_player_level(id, playerlevel[id], false);// hmmm false? forward level change could be helpful or skill change..
 			scxpm_calcneedxp(id);
 
 			new name[64];
 			get_user_name( id, name, 63 );
-			if ( playerlevel[id] == 1800 )
+
+			if ( playerlevel[id] == g_maxlevel )
 			{
-				client_print(0,print_chat,"[SCXPM] Everyone say ^"Congratulations!!!^" to %s, who has reached Level 1800!",name)
-				log_amx("[SCXPM] Player %s reached level 1800!", name );
+				client_print(0,print_chat,"[SCXPM] Everyone say ^"Congratulations!!!^" to %s, who has reached Level %i!",name, g_maxlevel);
+				log_amx("[SCXPM] Player %s reached level %i!", name, g_maxlevel );
 			}
 			else
 			{
@@ -318,31 +339,35 @@ public scxpm_reexp()
 		new i=iPlayers[g];
 		if ( is_user_connected(i) )
 		{
-			new maxlvl = get_pcvar_num(pcvar_maxlevel);
-			new maxlvlupon = get_pcvar_num(pcvar_maxlevelup_enabled);
-			new maxlvluplimit = get_pcvar_num(pcvar_maxlevelup_limit);
-			new maxlvlup = get_pcvar_num(pcvar_maxlevelup);
-			new Float:f_xpGain = get_pcvar_float(pcvar_xpgain);
+//			new maxlvl = get_pcvar_num(pcvar_maxlevel);
+//			g_maxlevel = get_pcvar_num(pcvar_maxlevel);
+//			new maxlvlupon = get_pcvar_num(pcvar_maxlevelup_enabled);
+//			new maxlvluplimit = get_pcvar_num(pcvar_maxlevelup_limit);
+//			new maxlvlup = get_pcvar_num(pcvar_maxlevelup);
+//			new Float:f_xpGain = get_pcvar_float(pcvar_xpgain);
 
-			if ( playerlevel[i] >= 1800 )
+			new plrlvl = playerlevel[i];
+
+			if ( plrlvl >= g_maxlevel )
 			{
-				xp[i] = 11500000;
-			}
-			else if ( playerlevel[i] >= maxlvl)
-			{
-				xp[i] = scxpm_calc_xp( playerlevel[i] );
+//				xp[i] = 11500000;
+				xp[i] = scxpm_calc_xp(g_maxlevel);
 			}
 			else
 			{
 				if(firstLvl[i] == 0)
 				{
-					firstLvl[i] = playerlevel[i];
+					firstLvl[i] = plrlvl;
 				}
 
-				if (maxlvlupon == 0 || playerlevel[i] <= maxlvluplimit || (playerlevel[i] - firstLvl[i]) < maxlvlup)
+				if (g_iMaxLvlUpOn == 0 || playerlevel[i] <= g_iMaxLvlUpLimit || (playerlevel[i] - firstLvl[i]) < g_iMaxLvlUp)
 				{
-					new Float:helpvar = float(xp[i])/5.0/f_xpGain+float(get_user_frags(i))-float(lastfrags[i]);
-					xp[i]=floatround(helpvar*5.0*f_xpGain);
+//					new Float:helpvar = float(xp[i])/5.0/f_xpGain+float(get_user_frags(i))-float(lastfrags[i]);
+//					xp[i]=floatround(helpvar*5.0*f_xpGain);
+					new Float:f_XP = float(xp[i]), Float:f_Frags = float(get_user_frags(i)), Float:f_LastFrags = float(lastfrags[i]), Float:f_NewXP;
+					new Float:helpvar = f_XP/mysteryNumber/g_fXPGain+f_Frags-f_LastFrags;
+					f_NewXP = helpvar*mysteryNumber*g_fXPGain;
+					xp[i]=floatround(f_NewXP);
 				}
 				lastfrags[i] = get_user_frags(i);
 				check_player_level(i);
@@ -370,7 +395,9 @@ public death()
 		return PLUGIN_HANDLED;
 	}
 
-	if ( playerlevel[killerId] < get_pcvar_num( pcvar_maxlevel ) )
+	// cache maxlevel cvar here, why not for now? could get hectic
+//	g_maxlevel = get_pcvar_num(pcvar_maxlevel);
+	if ( playerlevel[killerId] < g_maxlevel )
 	{
 		scxpm_kill( killerId );
 	}
@@ -380,7 +407,9 @@ public death()
 
 public scxpm_kill( id )
 {
-	xp[id] +=  floatround( 5.0 * get_pcvar_float( pcvar_xpgain ) );
+//	xp[id] +=  floatround( mysteryNumber * g_fXPGain );
+	new Float:f_NewXP = (mysteryNumber*g_fXPGain);
+	xp[id] += floatround(f_NewXP);
 
 	scxpm_calcneedxp(id);
 	check_player_level(id);

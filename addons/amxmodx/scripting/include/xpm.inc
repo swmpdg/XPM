@@ -25,40 +25,7 @@ August 26, 2016
 Last updated September 20, 2017
 */
 
-#define MAX_SKILLS 64
-
-#if !defined _shop_included
-
-enum {
-	SHOP_ITEM_ENABLED, // allows item to be used
-	SHOP_ITEM_DISABLED, // shows item but cannot be used
-	SHOP_ITEM_HIDDEN // hides item completely
-};
-
-#define SHOP_COST_NONE 0
-
-enum {
-	SHOP_TEAM_ALL = 0,
-	SHOP_TEAM_T = 1,
-	SHOP_TEAM_CT = 2,
-	SHOP_TEAM_SPEC = 4
-};
-
-#define SHOP_DELAY_NONE 0
-#define SHOP_DELAY_ROUND -1
-
-enum {
-	SHOP_RESET_TIMEONLY = 0,
-	SHOP_RESET_ROUND = 1 << 0, // 1
-	SHOP_RESET_DEATH = 1 << 1, // 2
-	SHOP_RESET_SPAWN = 1 << 2 // 4
-};
-
-#define SHOP_RESET_ALL (SHOP_RESET_ROUND | SHOP_RESET_DEATH | SHOP_RESET_SPAWN)
-
-#define SHOP_TIME_INFINITE 0
-
-#endif
+#include <xpm_const>
 
 /**
  * xpm_is_on() Checks if SCXPM is loaded or not. Sub-plugins will want to have loading checks and other checks to see if xpmod is enabled.
@@ -217,4 +184,30 @@ native register_skill(const name[], const name_short[], default_cost=SHOP_COST_N
 
 // native shop_add_item(const name[], const name_short[], const default_cost=SHOP_COST_NONE, const team=SHOP_TEAM_ALL, const usage_delay=SHOP_DELAY_ROUND, const callback_allowed[]="", const reset_option=SHOP_RESET_ALL, const reset_time=SHOP_TIME_INFINITE);
 
-forward skill_init(player_id,skill_index);
+
+// register to another array the values ? or register_skill ?? can use pcvars
+native set_skill_info(skillIndex, requiredPlayerLevel=0, maxSkillLevel, const description[], const shortName[]);
+
+native get_player_level(id);//returns player level
+native set_player_level(id, level, bool:addToLevel=false);
+
+native get_skill_level(id, skillIndex);// returns current level of skill
+native set_skill_level(id, skillIndex, level, bool:addToLevel=false);//set level of player skill
+
+
+/**************************
+ *        FORWARDS        *
+ **************************/
+
+/**
+ * Called when a skill is added or dropped.
+ * See xpm_const.inc for mode types.
+ *
+ * @param id			The index of the client.
+ * @param skillIndex	The index of the skill.
+ * @param mode			The skillIndex is being added or dropped.
+ * @noreturn
+ */
+forward skill_init(id, skillIndex, mode);
+
+//forward skill_init(player_id,skill_index);

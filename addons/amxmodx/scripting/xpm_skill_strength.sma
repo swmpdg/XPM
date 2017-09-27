@@ -34,6 +34,7 @@ new const gSkillCost[TOTAL_LEVELS] =
 	100
 };
 
+new pcvar_skill_max, pcvar_required_level, g_skillmax, g_required_level;
 
 public plugin_init()
 {
@@ -41,19 +42,33 @@ public plugin_init()
 
 //	RegisterHam(Ham_Spawn, "player", "FwdPlayerSpawnPost", 1);
 
+	pcvar_skill_max = register_cvar("skill_strength_max", "50");
+	pcvar_required_level = register_cvar("skill_strength_req_level","10");
+
+	g_skillmax = get_pcvar_num(pcvar_skill_max);
+	g_required_level = get_pcvar_num(pcvar_required_level);
+
 	for (new i = 0; i < TOTAL_LEVELS; i++)
 	{
 		gSkillID[i] = register_skill(gSkillName[i],gSkillCvar[i],gSkillCost[i],_,_,"StrengthCallback",0,0);
+		set_skill_info(gSkillID[i], g_required_level, g_skillmax, "Adds to max health limit and adds current health", "Strength");
 	}
 }
 
-public skill_init(id, item)
+public skill_init(id, skillIndex, mode)
 {
 	for(new i = 0; i < TOTAL_LEVELS; i++)
 	{
-		if(gSkillID[i] == item)
+		if(gSkillID[i] == skillIndex)
 		{
-			g_iHasSkill[id] = true;
+			if(mode)
+				g_iHasSkill[id] = true;
+			else
+			{
+				g_iHasSkill[id] = false;
+//				xpm_set_points(id, g_iSkillLevel[id], true);// refund skill points after drop?
+				g_iSkillLevel[id] = 0;
+			}
 		}
 	}
 }
@@ -67,28 +82,19 @@ public StrengthCallback(id, item)
 			g_iHasSkill[id] = true;
 			new skillCost = gSkillCost[i];
 			g_iSkillLevel[id]+=skillCost;
-/*
-			if(g_iSkillLevel[id] > MAX_SKILL_LEVEL)
-			{
-				new leftover_points;
-				leftover_points = g_iSkillLevel[id] - MAX_SKILL_LEVEL;
-				new newCost;
-				newCost = skillCost - leftover_points;
-				skillCost = newCost;
-				xpm_set_points(id, leftover_points, true);// add back to the xp points system
-				g_iSkillLevel[id] = MAX_SKILL_LEVEL;
-			}
-*/
-			new totalHealth = get_user_health(id) + skillCost;
-/*
-			new curmaxhealth = get_sv_max_health();// should be server max health, not player max health check
 
-			// really I want to increase max health, but maybe that could be for another skill..
-			// can turn this into a stock function to handle leftover skillpoints
-			// maybe like: stock xpm_check_skillpoints(new_value, server_max_value, skillCost) return leftover_points?
-*/
+			for(new j = 0; j < TOTAL_LEVELS; j++)
+			{
+				set_skill_level(id,gSkillID[i],g_iSkillLevel[id],false);// sync all the separate skills loaded with this value, so they all match
+			}
+
 			set_max_health(id, skillCost, true);// add on to max hp=true - set for awareness skill?
-			set_user_health(id, totalHealth);
+
+			if(is_user_alive(id))
+			{
+				new totalHealth = get_user_health(id) + skillCost;
+				set_user_health(id, totalHealth);
+			}
 			break;
 		}
 	}

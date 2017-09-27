@@ -84,4 +84,9 @@ stock set_debug_logging(bool:isEnabled)
 	}
 }
 
+stock log_bad_params()
+{
+	log_error(AMX_ERR_PARAMS, "Missing or incorrect parameters");
+}
+
 forward debug_set(bool:debug_enabled);

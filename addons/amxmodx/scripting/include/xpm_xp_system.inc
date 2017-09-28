@@ -22,7 +22,6 @@
 Half-Life Experience Mod (XPM) API native and stock functions
 By Swamp Dog @ ModRiot.com
 August 26, 2016
-Last updated September 20, 2017
 */
 
 //  returns new xp after set?

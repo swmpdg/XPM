@@ -2,6 +2,7 @@
 #include <fun>
 #include <xpm>
 #include <xpm_hp_ap>
+#include <xpm_skill_factors>
 #include <debug_helper>
 
 #define TOTAL_LEVELS 3
@@ -34,25 +35,35 @@ new const gSkillCost[TOTAL_LEVELS] =
 	100
 };
 
-new pcvar_skill_max, pcvar_required_level, g_skillmax, g_required_level;
+new gRequiredLevel[TOTAL_LEVELS];// make required level for each skill cost (i.e. level 5-24 only can use +5 strength at a time, 25-99 can use +25, etc)
+
+//new pcvar_skill_max, pcvar_required_level, g_skillmax, g_required_level;
 
 public plugin_init()
 {
 	register_plugin("Test Skill Plugin", "1.0.0a", "swampdog@modriot.com");
 
+	// is it more efficient just to use forwards, or just use a hook with hamsandwich?
 //	RegisterHam(Ham_Spawn, "player", "FwdPlayerSpawnPost", 1);
 
-	pcvar_skill_max = register_cvar("skill_strength_max", "50");
-	pcvar_required_level = register_cvar("skill_strength_req_level","10");
+//	pcvar_skill_max = register_cvar("skill_strength_max", "50");
+//	pcvar_required_level = register_cvar("skill_strength_req_level","10");
 
-	g_skillmax = get_pcvar_num(pcvar_skill_max);
-	g_required_level = get_pcvar_num(pcvar_required_level);
+//	g_skillmax = get_pcvar_num(pcvar_skill_max);
+//	g_required_level = get_pcvar_num(pcvar_required_level);
 
 	for (new i = 0; i < TOTAL_LEVELS; i++)
 	{
+		gRequiredLevel[i] = gSkillCost[i];
 		gSkillID[i] = register_skill(gSkillName[i],gSkillCvar[i],gSkillCost[i],_,_,"StrengthCallback",0,0);
-		set_skill_info(gSkillID[i], g_required_level, g_skillmax, "Adds to max health limit and adds current health", "Strength");
+//		set_skill_info(gSkillID[i], g_required_level, g_skillmax, "Adds to max health limit and adds current health", "Strength");
+		set_skill_info(gSkillID[i], gRequiredLevel[i], MAX_SKILL_LEVEL, "Adds to max health limit and adds current health", "Strength");
 	}
+}
+
+public skill_factor_init(id, factorLevel, factorIndex)
+{
+	set_skill_factor(id, factorLevel, factorIndex);
 }
 
 public skill_init(id, skillIndex, mode)
@@ -69,6 +80,7 @@ public skill_init(id, skillIndex, mode)
 //				xpm_set_points(id, g_iSkillLevel[id], true);// refund skill points after drop?
 				g_iSkillLevel[id] = 0;
 			}
+			break;
 		}
 	}
 }
@@ -85,7 +97,7 @@ public StrengthCallback(id, item)
 
 			for(new j = 0; j < TOTAL_LEVELS; j++)
 			{
-				set_skill_level(id,gSkillID[i],g_iSkillLevel[id],false);// sync all the separate skills loaded with this value, so they all match
+				set_skill_level(id,gSkillID[j],g_iSkillLevel[id],false);// sync all the separate skills loaded with this value, so they all match
 			}
 
 			set_max_health(id, skillCost, true);// add on to max hp=true - set for awareness skill?
@@ -107,9 +119,18 @@ public xpm_spawn(id)
 	{
 		if(g_iHasSkill[id])
 		{
-// need to reset maxhealth here for some mods?
-			new totalHealth = get_user_health(id) + g_iSkillLevel[id];
+// need to reset maxhealth here for some mods? ??
+			new curMaxHP = get_max_health(id);
+			new curHealth = get_user_health(id);
+//			new totalHealth = curHealth + g_iSkillLevel[id];
+			new factors = get_all_factors(id);
+			new totalHealth = curHealth + g_iSkillLevel[id] + factors;
+
+			if(totalHealth > curMaxHP)
+				set_max_health(id, totalHealth, false);// add on to max hp=true - set for awareness skill?
+
 			set_user_health(id, totalHealth);
+
 			client_print(id, print_chat, "You spawned with %i total HP", totalHealth);
 		}
 	}

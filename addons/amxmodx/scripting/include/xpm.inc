@@ -22,7 +22,6 @@
 Half-Life Experience Mod (XPM) API native and stock functions
 By Swamp Dog @ ModRiot.com
 August 26, 2016
-Last updated September 20, 2017
 */
 
 #include <xpm_const>
@@ -36,95 +35,6 @@ Last updated September 20, 2017
  */
 native xpm_is_on();
 
-/**
- * Turns XP Mod on or off using switch_xpmod() after calling to check if XP Mod is on with xpmod_is_on(). 
- * 
- * @return		True if XP Mod on/off switch was performed, false if otherwise.
- * 
- * @note		This will turn XP Mod on or off. Use switch_xpmod() to turn it on if it is off, or off it is on.
- *
- */
-native switch_xpmod();
-
-/**
- * Checks and returns the value of the loop that is currently loaded for XP Mod.
- *
- * @return			"loopcheck" loop id loaded on success/true, PLUGIN_CONTINUE on failure/false.
- */
-native get_loop_id();
-
-/**
- * Retrieves configured max level (default 1800).
- *
- * @return			The max level value success, false on failure.
- */
-native xpm_max_lvl();
-
-/**
- * Retrieves configured max health (default 0, disabled - maxhealth is 645).
- *
- * @return			The max health value on success, false on failure.
- */
-native xpm_max_hp();
-
-/**
- * Retrieves server configured max armor (default 0, disabled - maxarmor is 645).
- *
- * @return			The max armor value on success, false on failure.
- */
-native xpm_max_ap();
-
-/**
- * Gets the client's player level.
- *
- * @param id		The index of the client.
- * @return			The current level of the player.
- */
-native get_level(id);
-
-/**
- * Sets the client's player level.
- * @param id		The index of the client.
- * @param lvlnum	The level number to set on the client. 
- */
-native set_level(id);
-
-/**
- * Retrieves the client's current XP.
- *
- * @param id		The index of the client.
- * @return			The current XP of the client.
- */
-native get_xp(id);
-
-/**
- * Add to client's current XP.
- *
- * @param id		The index of the client.
- * @param addxp		The xp to add to the client.
- * @return			PLUGIN_HANDLED on success, PLUGIN_CONTINUE on failure.
- */
-native add_xp(id, addxp);
-
-/**
- * Sets the client's current XP to this value.
- *
- * @param id		The index of the client.
- * @param setxp		The xp to add to the client.
- * @return			PLUGIN_HANDLED on success, PLUGIN_CONTINUE on failure.
- */
-native set_xp(id, setxp);
-
-/**
- * Checks if the client's stats are loaded yet.
- *
- * @param id		The index of the client.
- * @return			PLUGIN_HANDLED on success/true, PLUGIN_CONTINUE on failure/false
- */
-native is_loaded(id);
-
-
-//xpm_set_points(player_id,amount,bool:addToPoints=false)
 /**
  * Sets the client's current skillpoints.
  *
@@ -194,10 +104,6 @@ native set_player_level(id, level, bool:addToLevel=false);
 native get_skill_level(id, skillIndex);// returns current level of skill
 native set_skill_level(id, skillIndex, level, bool:addToLevel=false);//set level of player skill
 
-
-/**************************
- *        FORWARDS        *
- **************************/
 
 /**
  * Called when a skill is added or dropped.

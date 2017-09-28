@@ -51,6 +51,8 @@ new xp[33],
 	neededxp[33],
 	playerlevel[33];
 
+new bool:gShowHud[33]=true;
+
 public debug_set(bool:debug_enabled)
 {
 	if(!pcvar_debug)
@@ -102,7 +104,20 @@ public plugin_init()
 #endif
 
 	// command to test max level from max_xp
-	register_clcmd("say /maxlevel", "CmdMaxLvl");
+//	register_clcmd("say /maxlevel", "CmdMaxLvl");
+	// command to test hud message control
+	register_clcmd("say /showxp", "CmdShowXP");
+}
+
+public CmdShowXP(id)
+{
+	switch(gShowHud[id])
+	{
+		case true:
+			gShowHud[id] = false;
+		case false:
+			gShowHud[id] = true;
+	}
 }
 
 public CmdMaxLvl(id)
@@ -265,6 +280,7 @@ public client_putinserver(id)
 	scxpm_calcneedxp(id);
 	xpm_set_points(id, iLevel, true);
 	set_player_level(id, iLevel, false);
+	gShowHud[id] = true;
 }
 
 // calculate needed xp for next level
@@ -423,6 +439,9 @@ public ShowHUD(taskid)
 	new player = ID_SHOWHUD
 
 #if defined USING_CS
+	if(!gShowHud[player])
+		return;
+
 	// Player dead?
 	if (!is_user_alive(player))
 	{
@@ -447,7 +466,7 @@ public ShowHUD(taskid)
 		ShowSyncHudMsg(ID_SHOWHUD, g_MsgSync, "Exp.: %i / %i | Level: %i / %i | Health: %i | Armor: %i", xp[ID_SHOWHUD],neededxp[ID_SHOWHUD],playerlevel[ID_SHOWHUD], get_pcvar_num(pcvar_maxlevel), get_user_health(ID_SHOWHUD), get_user_armor(ID_SHOWHUD));
 	}
 #else
-	if (!is_user_alive(player))
+	if (!is_user_alive(player) || !gShowHud[player])
 	{
 		return;
 	}
@@ -484,6 +503,7 @@ public client_disconnect(id)
 	}
 
 	bIsLoaded[id] = false;
+	gShowHud[id] = false;
 }
 
 LoadData(id)

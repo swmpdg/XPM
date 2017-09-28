@@ -185,7 +185,7 @@ public xpm_prethink(id)
 	return FMRES_IGNORED;
 }
 
-#else
+#endif // USE_FAKEMETA
 
 #if defined USE_HAMSANDWICH
 
@@ -212,8 +212,6 @@ public XPMPlayerKilledPost(id, killer, shouldGib)
 }
 
 #endif // USE_HAMSANDWICH
-
-#endif // USE_FAKEMETA
 
 public plugin_natives()
 {

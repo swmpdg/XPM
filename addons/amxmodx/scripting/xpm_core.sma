@@ -421,19 +421,28 @@ public CallbackItemAllowed(item, id)
 			if(gPoints[id] < costvalue)
 				return SHOP_ITEM_HIDDEN;
 
-			new reqLvl = gItemRequiredLevel[item];
+//			new reqLvl = gItemRequiredLevel[item];
+			new reqLvl = gItemRequiredLevel[i];
 
 			// don't show player if they aren't a high enough level
-			if((reqLvl) && (reqLvl > gPlayerLevel[id]))
+			if((reqLvl > 0) && (reqLvl > gPlayerLevel[id]))
 				return SHOP_ITEM_HIDDEN;
 
-			new itemMax = gItemMaxLevel[item];
-			new sklLvl = gSkillLevel[id][item];
+			// somewhere in here is breaking medals from showing up in the list...
+			
+//			new itemMax = gItemMaxLevel[item];
+//			new sklLvl = gSkillLevel[id][item];
+			new itemMax = gItemMaxLevel[i];
+			new sklLvl = gSkillLevel[id][i];
+
 			new costLvl = sklLvl + costvalue;
 
 			// don't show player if they already have the max level of this skill
-			if((itemMax) && (itemMax < costLvl))
+			if((itemMax > 0) && (itemMax < costLvl))
+			{
+				debug_log(g_debug,"Disabled itemMax: %i, costLvl: %i, sklLvl: %i", itemMax, costLvl, sklLvl);
 				return SHOP_ITEM_HIDDEN;
+			}
 		}
 	}
 
@@ -538,28 +547,7 @@ public _xpm_set_points(plugin, params)
 
 	new addOn = get_param(3);
 
-/*
-	if(addOn)
-	{
-		new oldPts = gPoints[id];
-		new newPts = oldPts + amt;
-
-		if(newPts < 0)
-			newPts = 0;
-
-		gPoints[id] = newPts;
-	}
-	else
-	{
-		// we can go negative, but not yet
-		if(amt < 0)
-			amt = 0;
-
-		gPoints[id] = amt;
-	}
-*/
 	localSetPoints(id, amt, addOn);
-
 
 	return gPoints[id];
 }

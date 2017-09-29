@@ -26,7 +26,7 @@ enum
 	SKILL_PRESTIGE
 };
 
-stock bool:g_iHasFactor[33][TOTAL_FACTORS];
+stock bool:g_bHasFactor[33][TOTAL_FACTORS];
 stock g_iFactorLevel[33][TOTAL_FACTORS];
 // g_iFactors for being lazy and storing them all in 1 variable added together
 stock g_iFactors[33];

@@ -60,10 +60,10 @@ public skill_init(id, skillIndex, mode)
 		if(gSkillID[i] == skillIndex)
 		{
 			if(mode)
-				g_iHasFactor[id][i] = true;
+				g_bHasFactor[id][i] = true;
 			else
 			{
-				g_iHasFactor[id][i] = false;
+				g_bHasFactor[id][i] = false;
 //				xpm_set_points(id, g_iSkillLevel[id], true);// refund skill points after drop?
 				g_iFactorLevel[id][i] = 0;
 			}
@@ -78,7 +78,7 @@ public FactorCallback(id, item)
 	{
 		if(gSkillID[i] == item)
 		{
-			g_iHasFactor[id][i] = true;
+			g_bHasFactor[id][i] = true;
 
 			new skillCost = gSkillCost[i];
 			g_iFactorLevel[id][i]+=skillCost;

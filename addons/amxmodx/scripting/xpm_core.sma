@@ -437,7 +437,7 @@ public CallbackItemAllowed(item, id)
 
 			new costLvl = sklLvl + costvalue;
 
-			// don't show player if they already have the max level of this skill
+			// don't show player if they already have the max level of this skill (cost must be less than max)
 			if((itemMax > 0) && (itemMax < costLvl))
 			{
 				debug_log(g_debug,"Disabled itemMax: %i, costLvl: %i, sklLvl: %i", itemMax, costLvl, sklLvl);

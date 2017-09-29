@@ -9,7 +9,7 @@
 
 #define MAX_SKILL_LEVEL 450
 
-new bool:g_iHasSkill[33]=false;
+new bool:g_bHasSkill[33];
 new g_iSkillLevel[33];
 
 new gSkillID[TOTAL_LEVELS];
@@ -37,26 +37,16 @@ new const gSkillCost[TOTAL_LEVELS] =
 
 new gRequiredLevel[TOTAL_LEVELS];// make required level for each skill cost (i.e. level 5-24 only can use +5 strength at a time, 25-99 can use +25, etc)
 
-//new pcvar_skill_max, pcvar_required_level, g_skillmax, g_required_level;
-
 public plugin_init()
 {
 	register_plugin("Test Skill Plugin", "1.0.0a", "swampdog@modriot.com");
 
 	// is it more efficient just to use forwards, or just use a hook with hamsandwich?
-//	RegisterHam(Ham_Spawn, "player", "FwdPlayerSpawnPost", 1);
-
-//	pcvar_skill_max = register_cvar("skill_strength_max", "50");
-//	pcvar_required_level = register_cvar("skill_strength_req_level","10");
-
-//	g_skillmax = get_pcvar_num(pcvar_skill_max);
-//	g_required_level = get_pcvar_num(pcvar_required_level);
 
 	for (new i = 0; i < TOTAL_LEVELS; i++)
 	{
 		gRequiredLevel[i] = gSkillCost[i];
 		gSkillID[i] = register_skill(gSkillName[i],gSkillCvar[i],gSkillCost[i],_,_,"StrengthCallback",0,0);
-//		set_skill_info(gSkillID[i], g_required_level, g_skillmax, "Adds to max health limit and adds current health", "Strength");
 		set_skill_info(gSkillID[i], gRequiredLevel[i], MAX_SKILL_LEVEL, "Adds to max health limit and adds current health", "Strength");
 	}
 }
@@ -73,10 +63,10 @@ public skill_init(id, skillIndex, mode)
 		if(gSkillID[i] == skillIndex)
 		{
 			if(mode)
-				g_iHasSkill[id] = true;
+				g_bHasSkill[id] = true;
 			else
 			{
-				g_iHasSkill[id] = false;
+				g_bHasSkill[id] = false;
 //				xpm_set_points(id, g_iSkillLevel[id], true);// refund skill points after drop?
 				g_iSkillLevel[id] = 0;
 			}
@@ -91,7 +81,7 @@ public StrengthCallback(id, item)
 	{
 		if(gSkillID[i] == item)
 		{
-			g_iHasSkill[id] = true;
+			g_bHasSkill[id] = true;
 			new skillCost = gSkillCost[i];
 			g_iSkillLevel[id]+=skillCost;
 
@@ -117,7 +107,7 @@ public xpm_spawn(id)
 {
 	if(is_user_alive(id))
 	{
-		if(g_iHasSkill[id])
+		if(g_bHasSkill[id])
 		{
 // need to reset maxhealth here for some mods? ??
 			new curMaxHP = get_max_health(id);

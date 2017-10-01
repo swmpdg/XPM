@@ -2,8 +2,9 @@
 #include <fun>
 #include <engine>
 #include <xpm>
-#include <xpm_hp_ap>
+//#include <xpm_hp_ap>
 #include <xpm_skill_factors>
+#include <xpm_distance>
 #include <debug_helper>
 
 #define USING_CS
@@ -60,7 +61,7 @@ public plugin_init()
 
 public plugin_cfg()
 {
-	set_task(1.0,"teamPowerTask",TP_TASKID,_,_,"b");
+	set_task(5.0,"teamPowerTask",TP_TASKID,_,_,"b");
 }
 
 public teamPowerTask()
@@ -85,22 +86,17 @@ public teamPowerTask()
 			for(new k = 0; k < iNum+1; k++)
 			{
 				new l = iPlayers[k];
+
 #if !defined TEST_TP
 				if(j == l)
 					continue;// skip same player unless testing
 #endif
-#if defined USING_CS
-				// add FFA deathmatch support
-				if(!same_team(j,l))
+
+				if(!is_team_near(j,l))
 					continue;
-#endif
-				if(is_user_alive(l) && team_is_close(j,l))
-				{
-					// do teampower skills
-					new teamHealth = get_user_health(l)+1;
-					set_user_health(l,teamHealth);
-					debug_log(g_debug,"Team power worked");
-				}
+
+				new teamHealth = get_user_health(l)+1;
+				set_user_health(l,teamHealth);
 			}
 		}
 	}
@@ -140,13 +136,15 @@ public skill_factor_init(id, factorLevel, factorIndex)
 {
 	set_skill_factor(id, factorLevel, factorIndex);
 
-	set_max_distance(id);
+	if(g_bHasSkill[id])
+		set_max_distance(id);
 }
 
 /// team power formula for distance range: (team_power_level * 10) + awareness + medals + (prestige * prestige_multiplier)
 set_max_distance(id)
 {
 	maxDist[id] = (g_iSkillLevel[id]*10) + g_iFactorLevel[id][SKILL_AWARE] + g_iFactorLevel[id][SKILL_MEDAL] + (g_iFactorLevel[id][SKILL_PRESTIGE]*10);
+	set_player_range(id, maxDist[id], false);
 }
 
 public skill_init(id, skillIndex, mode)

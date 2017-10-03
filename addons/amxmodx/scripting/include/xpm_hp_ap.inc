@@ -42,3 +42,10 @@ native get_sv_max_armor();
 forward xpm_spawn(id);
 forward xpm_die(id);
 
+// to sync plugins with these values
+forward max_health(id,healthNum);
+forward max_armor(id,armorNum);
+
+stock g_iMaxHealth[33];
+stock g_iMaxArmor[33];
+

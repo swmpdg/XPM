@@ -1,13 +1,17 @@
 #include <amxmodx>
 #include <fun>
-#include <engine>
+//#include <engine>
 #include <xpm>
-//#include <xpm_hp_ap>
+#include <xpm_hp_ap>
 #include <xpm_skill_factors>
 #include <xpm_distance>
 #include <debug_helper>
 
 #define USING_CS
+
+#if defined USING_CS
+#include <cstrike>
+#endif
 
 #define TOTAL_LEVELS 1
 
@@ -45,6 +49,17 @@ new iNum, iPlayers[32];
 // Max distance range
 new maxDist[33];
 
+
+public max_health(id,healthNum)
+{
+	g_iMaxHealth[id] = healthNum;
+}
+
+public max_armor(id,armorNum)
+{
+	g_iMaxArmor[id] = armorNum
+}
+
 public plugin_init()
 {
 	register_plugin("Test Team Power", "1.0.0a", "swampdog@modriot.com");
@@ -81,7 +96,10 @@ public teamPowerTask()
 	{
 		new j = iPlayers[i];
 
-		if(g_bHasSkill[j] && is_user_alive(j))
+		if(!g_bHasSkill[j])
+			continue;
+
+		if(is_user_alive(j))
 		{
 			for(new k = 0; k < iNum+1; k++)
 			{
@@ -95,8 +113,22 @@ public teamPowerTask()
 				if(!is_team_near(j,l))
 					continue;
 
-				new teamHealth = get_user_health(l)+1;
-				set_user_health(l,teamHealth);
+//				new teamHealth = get_user_health(l)+1;
+//				set_user_health(l,teamHealth);
+
+				new curHp = get_user_health(l);
+
+				if(curHp < g_iMaxHealth[l])
+					set_user_health(l, curHp+1);
+
+				new curAp = get_user_armor(l);
+
+				if(curAp < g_iMaxArmor[l])
+#if defined USING_CS
+					cs_set_user_armor(l,curAp+1,CS_ARMOR_VESTHELM)
+#else
+					set_user_armor(l,curAp+1);
+#endif
 			}
 		}
 	}

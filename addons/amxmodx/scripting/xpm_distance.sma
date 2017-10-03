@@ -170,6 +170,7 @@ public DistanceTask()
 				{
 					g_bEnemyNear[j][l]=true;
 					g_bTeamNear[j][l]=false;
+					continue;
 				}
 				else if(!same_team(j,l))
 				{
@@ -191,12 +192,16 @@ public DistanceTask()
 // for teamplay games to check if players are on the same team - returns true if both players are on same team, false if otherwise
 stock same_team(i, id)
 {
+#if defined USING_CS
 	new teama[32], teamb[32];
 	get_user_team(id,teama,31);
 	get_user_team(i,teamb,31);
 	if(equali(teama,teamb))
 		return 1;
 	return 0;
+#else
+	return (get_user_team(i) == get_user_team(id)) ? 1 : 0;
+#endif
 }
 
 // add distance

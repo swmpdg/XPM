@@ -48,6 +48,7 @@ new const xpmLib[_LIBNAME+1][] =
 // forwards
 // new fwdStartHealth, fwdMaxHealth, fwdStartArmor, fwdMaxArmor, fwdReturn;
 new fwdXPMSpawn, fwdXPMDie;
+new fwdMaxHealth, fwdMaxArmor;
 new fwdReturn;
 
 // array to contain points, level, and ??
@@ -121,12 +122,12 @@ public plugin_init()
 
 	fwdXPMSpawn = CreateMultiForward("xpm_spawn", ET_IGNORE, FP_CELL);// parameter 1 = player index
 	fwdXPMDie = CreateMultiForward("xpm_die", ET_IGNORE, FP_CELL);// parameter 1 = player index
+	
+	fwdMaxHealth = CreateMultiForward(fwdID[FWD_MAX_HEALTH], ET_IGNORE, FP_CELL, FP_CELL);// parameter 1 = player index, parameter 2 = value rounded, must be greater than 0.9
+	fwdMaxArmor = CreateMultiForward(fwdID[FWD_MAX_ARMOR], ET_IGNORE, FP_CELL, FP_CELL);// parameter 1 = player index, parameter 2 = value rounded, must be greater than 0.9
 /*
 	fwdStartHealth = CreateMultiForward(fwdID[FWD_START_HEALTH], ET_IGNORE, FP_CELL, FP_CELL);// parameter 1 = player index, parameter 2 = value
-	fwdMaxHealth = CreateMultiForward(fwdID[FWD_MAX_HEALTH], ET_IGNORE, FP_CELL, FP_FLOAT);// parameter 1 = player index, parameter 2 = value rounded, must be greater than 0.9
-
 	fwdStartArmor = CreateMultiForward(fwdID[FWD_START_ARMOR], ET_IGNORE, FP_CELL, FP_CELL);// parameter 1 = player index, parameter 2 = value
-	fwdMaxArmor = CreateMultiForward(fwdID[FWD_MAX_ARMOR], ET_IGNORE, FP_CELL, FP_FLOAT);// parameter 1 = player index, parameter 2 = value rounded, must be greater than 0.9
 */
 	// register cvars
 	pcvar_start_hp = register_cvar("xpm_start_hp","0");// use 0 for default map settings? any value greater than 0 for setting
@@ -235,17 +236,9 @@ public plugin_natives()
 	register_native("get_sv_max_armor","_get_sv_max_armor");// may be better to forward max_armor values to plugins
 
 	// ammo-related natives
-	
-	
 	// speed-related natives
-	
-	
 	// gravity-related natives
-	
-	
 	// distance-related natives (like team power) i.e "is_team_close(i, id) except in a native with a bool statement" "distance API"
-	
-	
 	// afk-related natives (like afk manager) i.e. "is_player_afk(id)" with a mative and bool statement to return quickly "AFK API"
 }
 
@@ -454,7 +447,9 @@ stock set_max_hp(id, Float:max_hp, addToMax=0)
 	{
 		entity_set_float(id, EV_FL_max_health, max_hp);
 //		log_amx("g_fMax_HP[id]: %f,^nmax_hp: %f",g_fMax_HP[id],max_hp);
+		ExecuteForward(fwdMaxHealth,fwdReturn,id,floatround(max_hp, floatround_floor));
 	}
+	
 }
 
 /// Set max armor points - using entvar "armortype" - if using a mod that needs it (like Sven Coop) to prevent constant counting down of points
@@ -494,6 +489,7 @@ stock set_max_ap(id, Float:max_ap, addToMax=0)
 	{
 		entity_set_float(id, EV_FL_armortype, max_ap);
 //		log_amx("g_fMax_AP[id]: %f,^nmax_ap: %f",g_fMax_AP[id],max_ap);
+		ExecuteForward(fwdMaxArmor,fwdReturn,id,floatround(max_ap, floatround_floor));
 	}
 }
 

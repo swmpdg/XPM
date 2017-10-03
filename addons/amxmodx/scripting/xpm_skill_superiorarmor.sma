@@ -5,7 +5,13 @@
 #include <xpm_skill_factors>
 #include <debug_helper>
 
-#define TOTAL_LEVELS 3
+#define USING_CS
+
+#if defined USING_CS
+#include <cstrike>
+#endif
+
+#define TOTAL_LEVELS 1
 
 #define MAX_SKILL_LEVEL 450
 
@@ -16,38 +22,32 @@ new gSkillID[TOTAL_LEVELS];
 
 new const gSkillName[TOTAL_LEVELS][] =
 {
-	"+5 HP & +5 Max HP",
-	"+25 HP & +25 Max HP",
-	"+100 HP & +100 Max HP"
+	"+5 Superior Armor",
 };
 
 new const gSkillCvar[TOTAL_LEVELS][] =
 {
-	"health5",
-	"health25",
-	"health100"
+	"armor5",
 };
 
 new const gSkillCost[TOTAL_LEVELS] =
 {
 	5,
-	25,
-	100
 };
 
 new gRequiredLevel[TOTAL_LEVELS];// make required level for each skill cost (i.e. level 5-24 only can use +5 strength at a time, 25-99 can use +25, etc)
 
 public plugin_init()
 {
-	register_plugin("Test Strength Skill", "1.0.0a", "swampdog@modriot.com");
+	register_plugin("Test Superior Armor", "1.0.0a", "swampdog@modriot.com");
 
 	// is it more efficient just to use forwards, or just use a hook with hamsandwich?
 
 	for (new i = 0; i < TOTAL_LEVELS; i++)
 	{
 		gRequiredLevel[i] = gSkillCost[i];
-		gSkillID[i] = register_skill(gSkillName[i],gSkillCvar[i],gSkillCost[i],_,_,"StrengthCallback",0,0);
-		set_skill_info(gSkillID[i], gRequiredLevel[i], MAX_SKILL_LEVEL, "Adds to max health limit and adds current health", "Strength");
+		gSkillID[i] = register_skill(gSkillName[i],gSkillCvar[i],gSkillCost[i],_,_,"SuperiorArmorCallback",0,0);
+		set_skill_info(gSkillID[i], gRequiredLevel[i], MAX_SKILL_LEVEL, "Adds to max armor limit and adds to current armor", "Superior Armor");
 	}
 }
 
@@ -75,7 +75,7 @@ public skill_init(id, skillIndex, mode)
 	}
 }
 
-public StrengthCallback(id, item)
+public SuperiorArmorCallback(id, item)
 {
 	for(new i = 0; i < TOTAL_LEVELS; i++)
 	{
@@ -90,12 +90,16 @@ public StrengthCallback(id, item)
 				set_skill_level(id,gSkillID[j],g_iSkillLevel[id],false);// sync all the separate skills loaded with this value, so they all match
 			}
 
-			set_max_health(id, skillCost, true);// add on to max hp=true - set for awareness skill?
+			set_max_armor(id, skillCost, true);// add on to max ap=true - set for awareness skill?
 
 			if(is_user_alive(id))
 			{
-				new totalHealth = get_user_health(id) + skillCost;
-				set_user_health(id, totalHealth);
+				new totalArmor = get_user_armor(id) + skillCost;
+#if defined USING_CS
+				cs_set_user_armor(id,totalArmor,CS_ARMOR_VESTHELM);
+#else
+				set_user_armor(id, totalArmor);
+#endif
 			}
 			break;
 		}
@@ -109,33 +113,36 @@ public xpm_spawn(id)
 	{
 		if(g_bHasSkill[id])
 		{
-// need to reset maxhealth here for some mods? ??
-			new curMaxHP = get_max_health(id);
-			new curHealth = get_user_health(id);
-//			new totalHealth = curHealth + g_iSkillLevel[id];
+// need to reset maxarmor here for some mods? ??
+			new curMaxAP = get_max_armor(id);
+			new curArmor = get_user_armor(id);
+
 			new factors = get_all_factors(id);
-			new totalHealth = curHealth + g_iSkillLevel[id] + factors;
+			new totalArmor = curArmor + g_iSkillLevel[id] + factors;
 
-			if(totalHealth > curMaxHP)
-				set_max_health(id, totalHealth, false);// add on to max hp=true - set for awareness skill?
+			if(totalArmor > curMaxAP)
+				set_max_armor(id, totalArmor, false);// add on to max hp=true - set for awareness skill?
 
-			set_user_health(id, totalHealth);
-
-			client_print(id, print_chat, "You spawned with %i total HP", totalHealth);
+#if defined USING_CS
+			cs_set_user_armor(id,totalArmor,CS_ARMOR_VESTHELM);
+#else
+			set_user_armor(id, totalArmor);
+#endif
+			client_print(id, print_chat, "You spawned with %i total AP", totalArmor);
 		}
 	}
-	debug_log(g_debug, "xpm_spawn(id) xpm_skill_strength.amxx called");
+	debug_log(g_debug, "xpm_spawn(id) xpm_skill_superiorarmor.amxx called");
 }
 
 public xpm_die(id)
 {
-	debug_log(g_debug, "xpm_die(id) xpm_skill_strength.amxx called");
+	debug_log(g_debug, "xpm_die(id) xpm_skill_superiorarmor.amxx called");
 }
 
 public debug_set(bool:debug_enabled)
 {
 	if(!pcvar_debug)
-		register_debug_cvar("xpm_strength_debug", "0");// add cvar to debug_helper.cfg to have it loaded with the cfg
+		register_debug_cvar("xpm_superiorarmor_debug", "0");// add cvar to debug_helper.cfg to have it loaded with the cfg
 	set_debug_logging(debug_enabled);
 	return;
 }

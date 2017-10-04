@@ -6,7 +6,7 @@
 
 #define TOTAL_LEVELS 1
 
-#define MAX_SKILL_LEVEL 30
+#define MAX_SKILL_LEVEL 40
 
 new bool:g_bHasSkill[33];
 new g_iSkillLevel[33];

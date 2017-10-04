@@ -720,7 +720,7 @@ ShowShopMenu(id, page = 0) {
 			len += copy(menu[len], charsmax(menu) - len, "\r9. \wNext^n");
 		}
 		
-		len += copy(menu[len], charsmax(menu) - len, "^n\r0. \wExit");
+//		len += copy(menu[len], charsmax(menu) - len, "^n\r0. \wExit");
 		
 		new pages = (added - 1) / PERPAGE + 1;
 		formatex(pageInfo, charsmax(pageInfo), "(Page %d/%d)", gMenuPage[id], pages);
@@ -828,7 +828,7 @@ ShowShopMenu(id, page = 0) {
 			len += copy(menu[len], charsmax(menu) - len, "9. Next^n");
 		}
 		
-		len += copy(menu[len], charsmax(menu) - len, "^n0. Exit");
+//		len += copy(menu[len], charsmax(menu) - len, "^n0. Exit");
 		
 		new pages = (added - 1) / PERPAGE + 1;
 		formatex(pageInfo, charsmax(pageInfo), "(Page %d/%d)", gMenuPage[id], pages);
